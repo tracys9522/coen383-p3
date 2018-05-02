@@ -1,5 +1,10 @@
 #include "customer.h"
 
+customer::customer()
+{
+    _custid = -1;
+    _arrival = -1;
+}
 customer::customer(int custid, int arrival)
 {
     _custid = custid;

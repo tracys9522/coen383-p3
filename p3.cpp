@@ -1,9 +1,50 @@
 #include <pthread.h>
 #include "critical.h"
-#include <iostream>
+#include "customer.h"
 
 using namespace std;
 
+
+customer *queue[10];
+
+//compare arrival time
+int arrival_compare(const void *s1, const void *s2)
+{
+    customer *a = (customer *)s1;
+    customer *b = (customer *)s2;
+    return a->arrival() - b->arrival();
+}
+
+//generate for 10 customer queue
+void generateQueue(int input)
+{
+    int arrive,id;
+    for(int i = 0; i < 10; i++)
+    {
+        queue[i] = new customer[input];
+        
+        for (int j = 0; j < input; j++){
+            arrive = rand()%60;
+            id = i * input + j;
+            queue[i][j] = customer(id,arrive);
+        }
+    }
+    
+    //sort by arrival
+    for (int i = 0; i < 10; i++) {
+        qsort((void *)queue[i], input, sizeof(customer),arrival_compare);
+    }
+    
+    //print out sorted customer queue
+    for(int i = 0; i < 10; i++){
+        for (int j = 0; j < input; j++) {
+            cout<<queue[i][j]<<endl;
+        }
+        cout<<endl;
+    }
+}
+
+/*
 pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
@@ -24,7 +65,8 @@ void wakeup_all_seller_threads() {
     pthread_cond_broadcast(&cond);
     pthread_mutex_unlock(&mutex);
 }
-    
+*/
+
 int main(int argc, char *argv[]) {
     //input 5,10,15
     if(argc < 2){
@@ -32,18 +74,13 @@ int main(int argc, char *argv[]) {
         cout << "no input number... default input customer as " << input_customer << endl;
     }
     else{
-        input_customer = argv[1];
+        input_customer = atoi(argv[1]);
         cout << "number of customers: " << input_customer << endl;
     }
     
-    int seed = time(NULL);
-    srand(seed);
-    go = false;
+    generateQueue(input_customer);
     
-    Queue(input_customer);
-    
-    cout<<customer(input_customer);
-    
+    /*
     int i;
     pthread_t tids[10];
     char Seller_type;
@@ -64,5 +101,5 @@ int main(int argc, char *argv[]) {
     // Printout simulation results
    // ............
     exit(0);
-    
+    */
 }
