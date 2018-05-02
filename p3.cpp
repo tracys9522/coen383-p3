@@ -1,5 +1,8 @@
-#include <stdio.h>
 #include <pthread.h>
+#include "critical.h"
+#include <iostream>
+
+using namespace std;
 
 pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -22,9 +25,28 @@ void wakeup_all_seller_threads() {
     pthread_mutex_unlock(&mutex);
 }
     
-int main() {
+int main(int argc, char *argv[]) {
+    //input 5,10,15
+    if(argc < 2){
+        input_customer = 5;
+        cout << "no input number... default input customer as " << input_customer << endl;
+    }
+    else{
+        input_customer = argv[1];
+        cout << "number of customers: " << input_customer << endl;
+    }
+    
+    int seed = time(NULL);
+    srand(seed);
+    go = false;
+    
+    Queue(input_customer);
+    
+    cout<<customer(input_customer);
+    
     int i;
-    pthread_t tids[10]; char Seller_type;
+    pthread_t tids[10];
+    char Seller_type;
     // Create necessary data structures for the simulator.
     // Create buyers list for each seller ticket queue based on the
     // N value within an hour and have them in the seller queue.
