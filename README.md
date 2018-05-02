@@ -10,5 +10,7 @@ g++ p3.cpp customer.cpp
 
 need to finish:
 - seller class
-
-
+- seat class
+- critical region
+- pthread programming
+- makefile
