@@ -4,8 +4,7 @@
 #include <ostream>
 
 class seller{
-    typedef std::string string;
-    string name;
+    int sellerid;
     int price;
     customer *queue;
 public:
