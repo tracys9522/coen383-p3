@@ -10,9 +10,14 @@ class seat{
 public:
     seat();
     seat(int seatid, customer *cust);
+    void set_id(int id);
+    void set_proc(customer *cust);
+    void set_sold();
+    int seatID() const;
     bool isAvail() const;
     bool isSold() const;
     bool isProcessing() const;
 };
 
+ostream &operator <<(ostream &ostr, const seat s);
 #endif

@@ -21,6 +21,12 @@ int customer::arrival() const
     return _arrival;
 }
 
+customer& customer::operator=(const customer& c){
+    _custid = c._custid;
+    _arrival = c._arrival;
+    return *this;
+}
+
 ostream &operator << (ostream &ostr, const customer cust)
 {
     ostr<<"cust id: "<<cust.custid() << " arrival: "<< cust.arrival();

@@ -1,11 +1,12 @@
 #include <pthread.h>
 #include "critical.h"
 #include "customer.h"
-
+#include "seat.h"
 using namespace std;
 
 
 customer *queue[10];
+seat *theater;
 
 //compare arrival time
 int arrival_compare(const void *s1, const void *s2)
@@ -41,6 +42,14 @@ void generateQueue(int input)
             cout<<queue[i][j]<<endl;
         }
         cout<<endl;
+    }
+}
+
+void init_theater(){
+    theater = new seat[100];
+    for (int i = 0; i < 100; i++) {
+        theater[i].set_id(i);
+        //cout << theater[i];
     }
 }
 
@@ -80,6 +89,7 @@ int main(int argc, char *argv[]) {
     
     generateQueue(input_customer);
     
+    init_theater();
     /*
     int i;
     pthread_t tids[10];

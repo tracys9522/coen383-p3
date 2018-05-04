@@ -12,6 +12,7 @@ public:
     customer(int custid, int arrival);
     int arrival() const;
     int custid() const;
+    customer& operator=(const customer& c);
 };
 ostream &operator <<(ostream &ostr, const customer cust);
 #endif
