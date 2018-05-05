@@ -117,6 +117,72 @@ void increase_l_seat()
     l_seat = tmp;
 }
 
+//h seller makes the sell of the seats
+seat *h_sell()
+{
+    seat *soldseat = NULL;
+
+    pthread_mutex_lock(&seat_mutex);
+
+    //if there is still free seats
+    if (remaining_seats > 0) {
+        if (!h_seat->isAvail()) {
+            increase_h_seat();
+        }
+        soldseat = h_seat;
+        soldseat->set_proc();
+        remaining_seats--;
+        h_cust++;
+    }
+
+    pthread_mutex_unlock(&seat_mutex);
+    return soldseat;
+}
+
+//m seller sells the seat
+seat *m_sell()
+{
+    seat *soldseat = NULL;
+
+    pthread_mutex_lock(&seat_mutex);
+
+    //if there is still free seats
+    if (remaining_seats > 0) {
+        if (!m_seat->isAvail()) {
+            increase_m_seat();
+        }
+        soldseat = m_seat;
+        soldseat->set_proc();
+        remaining_seats--;
+        m_cust++;
+    }
+
+    pthread_mutex_unlock(&seat_mutex);
+    return soldseat;
+}
+
+//l seller sells the seat
+seat *l_sell()
+{
+    seat *soldseat = NULL;
+
+    pthread_mutex_lock(&seat_mutex);
+
+    //if there is still free seats
+    if (remaining_seats > 0) {
+        if (!l_seat->isAvail()) {
+            increase_l_seat();
+        }
+        soldseat = l_seat;
+        soldseat->set_proc();
+        remaining_seats--;
+        l_cust++;
+    }
+
+    pthread_mutex_unlock(&seat_mutex);
+    return soldseat;
+}
+
 /*
 void wakeup_all_seller_threads() {
     pthread_mutex_lock(&mutex);

@@ -16,8 +16,7 @@ void seat::set_id(int id){
     _seatid = id;
 }
 
-void seat::set_proc(customer *cust){
-    _cust = cust;
+void seat::set_proc(){
     _state = PROCESS;
 }
 
