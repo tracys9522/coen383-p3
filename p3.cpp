@@ -4,9 +4,11 @@
 #include "seat.h"
 using namespace std;
 
-
 customer *queue[10];
 seat *theater;
+
+//pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
+//pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
 //compare arrival time
 int arrival_compare(const void *s1, const void *s2)
@@ -54,8 +56,12 @@ void init_theater(){
 }
 
 /*
-pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
-pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+void wakeup_all_seller_threads() {
+    pthread_mutex_lock(&mutex);
+    pthread_cond_broadcast(&cond);
+    pthread_mutex_unlock(&mutex);
+}
+
 
 // seller thread to serve one time slice (1 minute)
 void * sell(char *seller_type)
@@ -69,11 +75,7 @@ void * sell(char *seller_type)
     }
     return NULL; // thread exits
 }
-void wakeup_all_seller_threads() {
-    pthread_mutex_lock(&mutex);
-    pthread_cond_broadcast(&cond);
-    pthread_mutex_unlock(&mutex);
-}
+
 */
 
 int main(int argc, char *argv[]) {
