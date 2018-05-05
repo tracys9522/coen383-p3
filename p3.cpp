@@ -5,7 +5,10 @@
 using namespace std;
 
 customer *queue[10];
-seat *theater;
+seat *theater = NULL;
+seat *h_seat = NULL;
+seat *m_seat = NULL;
+seat *l_seat = NULL;
 
 //pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
 //pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -25,19 +28,19 @@ void generateQueue(int input)
     for(int i = 0; i < 10; i++)
     {
         queue[i] = new customer[input];
-        
+
         for (int j = 0; j < input; j++){
             arrive = rand()%60;
             id = i * input + j;
             queue[i][j] = customer(id,arrive);
         }
     }
-    
+
     //sort by arrival
     for (int i = 0; i < 10; i++) {
         qsort((void *)queue[i], input, sizeof(customer),arrival_compare);
     }
-    
+
     //print out sorted customer queue
     for(int i = 0; i < 10; i++){
         for (int j = 0; j < input; j++) {
@@ -53,6 +56,65 @@ void init_theater(){
         theater[i].set_id(i);
         //cout << theater[i];
     }
+}
+
+//set up sellers at correct position in the theater
+void seat_map_init()
+{
+    h_seat = &theater[0];
+    m_seat = &theater[40];
+    l_seat = &theater[90];
+    remaining_seats = 100;
+}
+
+//increment h seller seat
+void increase_h_seat()
+{
+    seat *tmp = h_seat;
+    while (!tmp->isAvail() && remaining_seats > 0) {
+        tmp++;
+    }
+    h_seat = tmp;
+}
+
+//increase m seller seats
+void increase_m_seat()
+{
+    seat *tmp = m_seat;
+    //R5->R6->R4->R7
+    while (!tmp->isAvail() && remaining_seats > 0) {
+        int seatid = tmp->seatID();
+        //R6->R4
+        if(seatid == 59){
+            tmp = &theater[30];
+        }
+        //R4->R7
+        else if (seatid == 39){
+            tmp = &theater[60];
+        }
+        //R7->R5
+        else if (seatid == 69){
+            tmp = &theater[40];
+        }
+        else tmp ++;
+    }
+    m_seat = tmp;
+}
+
+//increament l seller seat
+void increase_l_seat()
+{
+    seat *tmp = l_seat;
+    while (!tmp->isAvail() && remaining_seats > 0) {
+        int seatid = tmp->seatID();
+        //at the end of the row...move to the beginning of the previous row
+        if(seatid > 9 && seatid % 10 == 9)
+        {
+            tmp = &theater[seatid-19];
+        }
+        else tmp ++;
+    }
+    l_seat = tmp;
 }
 
 /*
@@ -88,10 +150,12 @@ int main(int argc, char *argv[]) {
         input_customer = atoi(argv[1]);
         cout << "number of customers: " << input_customer << endl;
     }
-    
+
     generateQueue(input_customer);
-    
+
     init_theater();
+    seat_map_init();
+
     /*
     int i;
     pthread_t tids[10];
