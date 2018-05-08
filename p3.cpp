@@ -1,4 +1,5 @@
 #include <pthread.h>
+#include <stdlib.h>
 #include "critical.h"
 #include "customer.h"
 #include "seat.h"
@@ -198,8 +199,20 @@ void * sell(char *seller_type)
         pthread_mutex_lock(&mutex);
         pthread_cond_wait(&cond, &mutex);
         pthread_mutex_unlock(&mutex);
-        // Serve any buyer available in this seller queue that is ready
-        // now to buy ticket till done with all relevant buyers in their queue ..................
+        
+		// Serve any buyer available in this seller queue that is ready
+		seat *nextseat = NULL;
+		if (seller_type == "H") { 
+			seat = h_sell();
+		}
+		else if (seller_type == "M") {
+			seat = m_sell();
+		}
+		else if (seller_type == "L") {
+			seat = l_sell();
+		}
+        
+		// now to buy ticket till done with all relevant buyers in their queue ..................
     }
     return NULL; // thread exits
 }
@@ -225,23 +238,28 @@ int main(int argc, char *argv[]) {
     /*
     int i;
     pthread_t tids[10];
-    char Seller_type;
+    char seller_type;
     // Create necessary data structures for the simulator.
     // Create buyers list for each seller ticket queue based on the
     // N value within an hour and have them in the seller queue.
-    // Create 10 threads representing the 10 sellers. seller-type = “H”;
+    
+	// Create 10 threads representing the 10 sellers. 
+	seller-type = “H”;
     pthread_create(&tids[0], NULL, sell, &seller-type);
     seller-type = “M”;
     for (i = 1; i < 4; i++)
         pthread_create(&tids[i], NULL, sell, &seller-type);
     seller-type = “L”;
     for (i = 4; i < 10; i++)
-        pthread_create(&tids[i], NULL, sell, &seller-type); // wakeup all seller threads
+        pthread_create(&tids[i], NULL, sell, &seller-type); 
+	
+	// wakeup all seller threads
     wakeup_all_seller_threads();
+	
     // wait for all seller threads to exit
     for (i = 0 ; i < 10 ; i++) Pthread_join(&tids[i], NULL);
     // Printout simulation results
-   // ............
+    // ............
     exit(0);
     */
 }

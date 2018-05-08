@@ -2,6 +2,7 @@
 #define SELLER_H
 #include "customer.h"
 #include <ostream>
+#include <stdlib.h>
 
 class seller{
     int sellerid;
