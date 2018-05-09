@@ -19,6 +19,5 @@ int remaining_seats = 0;
 
 //mutex and cond
 pthread_mutex_t seat_mutex = PTHREAD_MUTEX_INITIALIZER;
-pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
 
 #endif

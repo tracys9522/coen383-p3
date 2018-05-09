@@ -1,18 +1,31 @@
 #include <pthread.h>
 #include <stdlib.h>
+#include <queue>
+#include <iomanip>
+#include <unistd.h>
+#include <string>
 #include "critical.h"
 #include "customer.h"
 #include "seat.h"
+
 using namespace std;
 
-customer *queue[10];
+customer *lists[10];
+customer *current_cust[10];
+queue<customer*> queues[10];
 seat *theater = NULL;
-seat *h_seat = NULL;
-seat *m_seat = NULL;
-seat *l_seat = NULL;
 
-//pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
-//pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+int ih_seat = 0;
+int im_seat = 40;
+int il_seat = 90;
+int m_skip = 10;
+
+int wakeup_time[10] = { 0 };
+
+int global_time = 0;
+
+pthread_cond_t  cond = PTHREAD_COND_INITIALIZER;
+pthread_mutex_t start_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 //compare arrival time
 int arrival_compare(const void *s1, const void *s2)
@@ -23,29 +36,33 @@ int arrival_compare(const void *s1, const void *s2)
 }
 
 //generate for 10 customer queue
-void generateQueue(int input)
+void generateAllQueues(int input)
 {
     int arrive,id;
     for(int i = 0; i < 10; i++)
     {
-        queue[i] = new customer[input];
+        lists[i] = new customer[input];
 
         for (int j = 0; j < input; j++){
             arrive = rand()%60;
             id = i * input + j;
-            queue[i][j] = customer(id,arrive);
+            lists[i][j] = customer(id,arrive);
         }
     }
 
     //sort by arrival
     for (int i = 0; i < 10; i++) {
-        qsort((void *)queue[i], input, sizeof(customer),arrival_compare);
+        qsort((void *)lists[i], input, sizeof(customer),arrival_compare);
+        for (int j = 0; j < input; j++) {
+          lists[i][j].set_id(j); // set IDs [0..n] in order
+          queues[i].push(&lists[i][j]);
+        }
     }
 
     //print out sorted customer queue
     for(int i = 0; i < 10; i++){
         for (int j = 0; j < input; j++) {
-            cout<<queue[i][j]<<endl;
+            cout<<lists[i][j]<<endl;
         }
         cout<<endl;
     }
@@ -62,60 +79,58 @@ void init_theater(){
 //set up sellers at correct position in the theater
 void seat_map_init()
 {
-    h_seat = &theater[0];
-    m_seat = &theater[40];
-    l_seat = &theater[90];
     remaining_seats = 100;
 }
 
-//increment h seller seat
-void increase_h_seat()
-{
-    seat *tmp = h_seat;
-    while (!tmp->isAvail() && remaining_seats > 0) {
-        tmp++;
-    }
-    h_seat = tmp;
+int next_h_seat() {
+  if (remaining_seats < 1) {
+    return -1;
+  }
+  while (!theater[ih_seat].isAvail()) {
+    ++ih_seat;
+  }
+  if (theater[ih_seat].isAvail()) {
+    return ih_seat;
+  }
+  return -1;
 }
 
-//increase m seller seats
-void increase_m_seat()
-{
-    seat *tmp = m_seat;
-    //R5->R6->R4->R7
-    while (!tmp->isAvail() && remaining_seats > 0) {
-        int seatid = tmp->seatID();
-        //R6->R4
-        if(seatid == 59){
-            tmp = &theater[30];
-        }
-        //R4->R7
-        else if (seatid == 39){
-            tmp = &theater[60];
-        }
-        //R7->R5
-        else if (seatid == 69){
-            tmp = &theater[40];
-        }
-        else tmp ++;
+int next_m_seat() {
+  if (remaining_seats < 1) {
+    return -1;
+  }
+  while (!theater[im_seat].isAvail()) {
+    ++im_seat;
+    if (im_seat % 10 == 0) {
+      im_seat -= 10;
+      im_seat += m_skip;
+      if (m_skip > 0) {
+        m_skip = -1 * (m_skip + 10);
+      } else {
+        m_skip = -1 * (m_skip - 10);
+      }
     }
-    m_seat = tmp;
+  }
+  if (theater[im_seat].isAvail()) {
+    return im_seat;
+  }
+  return -1;
 }
 
-//increament l seller seat
-void increase_l_seat()
-{
-    seat *tmp = l_seat;
-    while (!tmp->isAvail() && remaining_seats > 0) {
-        int seatid = tmp->seatID();
-        //at the end of the row...move to the beginning of the previous row
-        if(seatid > 9 && seatid % 10 == 9)
-        {
-            tmp = &theater[seatid-19];
-        }
-        else tmp ++;
+int next_l_seat() {
+  if (remaining_seats < 1) {
+    return -1;
+  }
+  while (!theater[il_seat].isAvail()) {
+    ++il_seat;
+    if (il_seat%10 == 0) {
+      il_seat -= 20;
     }
-    l_seat = tmp;
+  }
+  if (theater[il_seat].isAvail()) {
+    return il_seat;
+  }
+  return -1;
 }
 
 //h seller makes the sell of the seats
@@ -127,10 +142,11 @@ seat *h_sell()
 
     //if there is still free seats
     if (remaining_seats > 0) {
-        if (!h_seat->isAvail()) {
-            increase_h_seat();
+
+        if (!theater[ih_seat].isAvail()) {
+          next_h_seat();
         }
-        soldseat = h_seat;
+        soldseat = &theater[ih_seat];
         soldseat->set_proc();
         remaining_seats--;
         h_cust++;
@@ -149,10 +165,10 @@ seat *m_sell()
 
     //if there is still free seats
     if (remaining_seats > 0) {
-        if (!m_seat->isAvail()) {
-            increase_m_seat();
+        if (!theater[im_seat].isAvail()) {
+          next_m_seat();
         }
-        soldseat = m_seat;
+        soldseat = &theater[im_seat];
         soldseat->set_proc();
         remaining_seats--;
         m_cust++;
@@ -171,10 +187,10 @@ seat *l_sell()
 
     //if there is still free seats
     if (remaining_seats > 0) {
-        if (!l_seat->isAvail()) {
-            increase_l_seat();
+        if (!theater[il_seat].isAvail()) {
+          next_l_seat();
         }
-        soldseat = l_seat;
+        soldseat = &theater[il_seat];
         soldseat->set_proc();
         remaining_seats--;
         l_cust++;
@@ -184,42 +200,101 @@ seat *l_sell()
     return soldseat;
 }
 
-/*
 void wakeup_all_seller_threads() {
-    pthread_mutex_lock(&mutex);
-    pthread_cond_broadcast(&cond);
-    pthread_mutex_unlock(&mutex);
+  usleep(1000);
+  // wait for the threads to finish being created, otherwise the signal gets sent too fast
+  pthread_mutex_lock(&start_mutex);
+  pthread_cond_broadcast(&cond);
+  pthread_mutex_unlock(&start_mutex);
 }
-
 
 // seller thread to serve one time slice (1 minute)
-void * sell(char *seller_type)
+// void * sell(char *seller_type)
+void * sell(void * param)
 {
-    While (having more work todo) {
-        pthread_mutex_lock(&mutex);
-        pthread_cond_wait(&cond, &mutex);
-        pthread_mutex_unlock(&mutex);
-        
-		// Serve any buyer available in this seller queue that is ready
-		seat *nextseat = NULL;
-		if (seller_type == "H") { 
-			seat = h_sell();
-		}
-		else if (seller_type == "M") {
-			seat = m_sell();
-		}
-		else if (seller_type == "L") {
-			seat = l_sell();
-		}
-        
-		// now to buy ticket till done with all relevant buyers in their queue ..................
-    }
-    return NULL; // thread exits
+  int id = *(int*)param;
+  char seller_type;
+
+  if (id == 0) {
+    seller_type = 'H';
+  } else if (id < 4) {
+    seller_type = 'M';
+  } else {
+    seller_type = 'L';
+  }
+
+  fprintf(stderr, "[%02d:00] created thread for %c%d (TID:%#08xd)\n", global_time, seller_type, id, pthread_self());
+  pthread_mutex_lock(&start_mutex);
+  pthread_cond_wait(&cond, &start_mutex);
+  pthread_mutex_unlock(&start_mutex);
+  fprintf(stderr, "[%02d:00] [%c%d] aquired mux\n", global_time, seller_type, id);
+
+  if (current_cust[id] != NULL) {
+    // NOTE finalize sale
+    char seatname[5];
+    snprintf(seatname, 5, "%c%d%02d", seller_type, id, current_cust[id]->custid());
+    theater[current_cust[id]->seatid()].set_sold(string(seatname));
+    printf("[%02d:00] [%c%d] sold %c%03d to customer %d\n", global_time, seller_type, id, seller_type, current_cust[id]->seatid(), current_cust[id]->custid());
+    current_cust[id] = NULL;
+  }
+
+  if (queues[id].empty()) {
+    // nothing to run
+    return NULL;
+  }
+  customer* next_cust = queues[id].front();
+  if (wakeup_time[id] > global_time || next_cust->arrival() > global_time) {
+    // not ready yet
+    fprintf(stderr, "[%02d:00] [%c%d] not ready, sleeping\n", global_time, seller_type, id);
+    return NULL;
+  }
+
+  // TODO: [EVENT] next_cust arrived, announce it
+  printf("[%02d:00] [%c%d] Customer %d arrived to the queue.\n", global_time, seller_type, id, next_cust->custid());
+
+  seat* nextseat = NULL;
+  if (seller_type == 'H') {
+    wakeup_time[id] += rand() % 2 + 1;
+    nextseat = h_sell();
+  }
+  else if (seller_type == 'M') {
+    wakeup_time[id] += rand() % 3 + 2;
+    nextseat = m_sell();
+  }
+  else if (seller_type == 'L') {
+    wakeup_time[id] += rand() % 4 + 4;
+    nextseat = l_sell();
+  }
+
+  if (nextseat == NULL) {
+    // NOTE: [EVENT] turn customer away
+    printf("[%02d:00] [%c%d] Ran out of seats; turned away customer %d.\n", global_time, seller_type, id, next_cust->custid());
+  } else {
+    // NOTE: [EVENT] successful assignment
+    current_cust[id] = queues[id].front();
+    printf("[%02d:00] [%c%d] Assigned Customer %d to Seat %d\n", global_time, seller_type, id, next_cust->custid(), nextseat->seatID());
+    next_cust->set_seat(nextseat->seatID());
+  }
+
+  queues[id].pop();
+
+  fprintf(stderr, "[%02d:00] [%c%d] exiting successfully (TID:%#08xd)\n", global_time, seller_type, id, pthread_self());
+  return NULL; // thread exits
 }
 
-*/
+string layout_string() {
+  string layout = " ====== Theater ======";
+  for (int i = 0; i < 100; i++) {
+    if (i % 10 == 0) {
+      layout += "\n";
+    }
+    layout += theater[i].seatname() + " ";
+  }
+  return layout;
+}
 
 int main(int argc, char *argv[]) {
+  // srand(time(NULL));
     //input 5,10,15
     if(argc < 2){
         input_customer = 5;
@@ -230,36 +305,39 @@ int main(int argc, char *argv[]) {
         cout << "number of customers: " << input_customer << endl;
     }
 
-    generateQueue(input_customer);
+    // init clock
+    global_time = 0;
+
+    generateAllQueues(input_customer);
 
     init_theater();
     seat_map_init();
 
-    /*
-    int i;
-    pthread_t tids[10];
-    char seller_type;
-    // Create necessary data structures for the simulator.
-    // Create buyers list for each seller ticket queue based on the
-    // N value within an hour and have them in the seller queue.
-    
-	// Create 10 threads representing the 10 sellers. 
-	seller-type = “H”;
-    pthread_create(&tids[0], NULL, sell, &seller-type);
-    seller-type = “M”;
-    for (i = 1; i < 4; i++)
-        pthread_create(&tids[i], NULL, sell, &seller-type);
-    seller-type = “L”;
-    for (i = 4; i < 10; i++)
-        pthread_create(&tids[i], NULL, sell, &seller-type); 
-	
-	// wakeup all seller threads
-    wakeup_all_seller_threads();
-	
-    // wait for all seller threads to exit
-    for (i = 0 ; i < 10 ; i++) Pthread_join(&tids[i], NULL);
-    // Printout simulation results
-    // ............
-    exit(0);
-    */
+    int arg[10] = {0,1,2,3,4,5,6,7,8,9};
+
+    while (global_time < 60) {
+      pthread_t tids[10];
+
+      for (int i = 0; i < 10; i++) {
+        fprintf(stderr, "[%02d:00] creating thread for sellno. %d\n", global_time, i);
+        pthread_create(&tids[i], NULL, sell, &arg[i]);
+      }
+
+      for (int i = 0; i < 10; i++) {
+        fprintf(stderr, "[%d] TID: %#08xd\n", i, tids[i]);
+      }
+
+      wakeup_all_seller_threads();
+
+      // for (int i = 0; i < 10; i++) {
+      for (int i = 9; i > -1; i--) {
+        fprintf(stderr, "attempting to join T%d [TID:%#08xd]\n", i, tids[i]);
+        pthread_join(tids[i], NULL);
+        fprintf(stderr, "joined T%d\n", i);
+      }
+
+      ++global_time;
+    }
+
+    printf("%s\n", layout_string().c_str());
 }
