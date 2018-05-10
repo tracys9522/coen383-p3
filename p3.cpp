@@ -1,5 +1,6 @@
 #include <pthread.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <queue>
 #include <iomanip>
 #include <unistd.h>
@@ -209,7 +210,6 @@ void wakeup_all_seller_threads() {
 }
 
 // seller thread to serve one time slice (1 minute)
-// void * sell(char *seller_type)
 void * sell(void * param)
 {
   int id = *(int*)param;
@@ -223,11 +223,9 @@ void * sell(void * param)
     seller_type = 'L';
   }
 
-  fprintf(stderr, "[%02d:00] created thread for %c%d (TID:%#08xd)\n", global_time, seller_type, id, pthread_self());
   pthread_mutex_lock(&start_mutex);
   pthread_cond_wait(&cond, &start_mutex);
   pthread_mutex_unlock(&start_mutex);
-  fprintf(stderr, "[%02d:00] [%c%d] aquired mux\n", global_time, seller_type, id);
 
   if (current_cust[id] != NULL) {
     // NOTE finalize sale
@@ -245,11 +243,10 @@ void * sell(void * param)
   customer* next_cust = queues[id].front();
   if (wakeup_time[id] > global_time || next_cust->arrival() > global_time) {
     // not ready yet
-    fprintf(stderr, "[%02d:00] [%c%d] not ready, sleeping\n", global_time, seller_type, id);
     return NULL;
   }
 
-  // TODO: [EVENT] next_cust arrived, announce it
+  //[EVENT] next_cust arrived, announce it
   printf("[%02d:00] [%c%d] Customer %d arrived to the queue.\n", global_time, seller_type, id, next_cust->custid());
 
   seat* nextseat = NULL;
@@ -278,7 +275,6 @@ void * sell(void * param)
 
   queues[id].pop();
 
-  fprintf(stderr, "[%02d:00] [%c%d] exiting successfully (TID:%#08xd)\n", global_time, seller_type, id, pthread_self());
   return NULL; // thread exits
 }
 
@@ -294,7 +290,6 @@ string layout_string() {
 }
 
 int main(int argc, char *argv[]) {
-  // srand(time(NULL));
     //input 5,10,15
     if(argc < 2){
         input_customer = 5;
@@ -319,21 +314,13 @@ int main(int argc, char *argv[]) {
       pthread_t tids[10];
 
       for (int i = 0; i < 10; i++) {
-        fprintf(stderr, "[%02d:00] creating thread for sellno. %d\n", global_time, i);
         pthread_create(&tids[i], NULL, sell, &arg[i]);
       }
-
-      for (int i = 0; i < 10; i++) {
-        fprintf(stderr, "[%d] TID: %#08xd\n", i, tids[i]);
-      }
-
       wakeup_all_seller_threads();
 
       // for (int i = 0; i < 10; i++) {
       for (int i = 9; i > -1; i--) {
-        fprintf(stderr, "attempting to join T%d [TID:%#08xd]\n", i, tids[i]);
         pthread_join(tids[i], NULL);
-        fprintf(stderr, "joined T%d\n", i);
       }
 
       ++global_time;
